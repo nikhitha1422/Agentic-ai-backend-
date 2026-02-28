@@ -125,11 +125,11 @@ router.post('/:meetingId/end', async (req, res) => {
             return res.status(404).json({ error: 'Meeting not found' });
         }
 
-        meeting.status = 'ended';
+        meeting.status = 'completed';
         meeting.endedAt = new Date();
         await meeting.save();
 
-        res.json({ success: true, status: 'ended' });
+        res.json({ success: true, status: 'completed' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -165,12 +165,22 @@ router.post('/ai-permission', async (req, res) => {
 });
 
 // ------------------------------------------
-// 4. Get all meetings
+// 4. Get all meetings (or search)
 // GET /api/meetings
 // ------------------------------------------
 router.get('/', async (req, res) => {
     try {
-        const meetings = await Meeting.find().sort({ date: -1 });
+        const { query } = req.query;
+        let filter = {};
+        if (query) {
+            filter = {
+                $or: [
+                    { title: { $regex: query, $options: 'i' } },
+                    { description: { $regex: query, $options: 'i' } }
+                ]
+            };
+        }
+        const meetings = await Meeting.find(filter).sort({ date: -1 });
         res.json(meetings);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -236,7 +246,7 @@ router.post('/:meetingId/audio', upload.single('audio'), async (req, res) => {
             { meetingId: meetingId },
             {
                 audioPath: `uploads/meetings/${req.file.filename}`, // Removed leading slash for Windows path.join compatibility
-                status: 'ended'
+                status: 'completed'
             },
             { new: true }
         );
@@ -260,6 +270,46 @@ router.post('/:meetingId/audio', upload.single('audio'), async (req, res) => {
     }
 });
 
+// ------------------------------------------
+// 5.2 Upload Meeting Attachments
+// POST /api/meetings/:meetingId/attachments
+// ------------------------------------------
+router.post('/:meetingId/attachments', upload.array('files'), async (req, res) => {
+    try {
+        const meetingId = req.params.meetingId;
+        const meeting = await Meeting.findOne({ meetingId });
+
+        if (!meeting) {
+            return res.status(404).json({ error: 'Meeting not found' });
+        }
+
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ error: 'No files uploaded' });
+        }
+
+        const newAttachments = req.files.map(file => ({
+            name: file.originalname,
+            path: `uploads/meetings/${file.filename}`,
+            size: file.size,
+            type: file.mimetype,
+            uploadedAt: new Date()
+        }));
+
+        meeting.attachments = [...(meeting.attachments || []), ...newAttachments];
+        await meeting.save();
+
+        res.json({
+            success: true,
+            message: 'Files uploaded successfully',
+            attachments: meeting.attachments
+        });
+    } catch (err) {
+        console.error("Attachment Upload Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ------------------------------------------
 // Helper function to generate AI summary
 async function generateAISummary(meetingId) {
     let meeting;
@@ -491,7 +541,7 @@ router.get('/:meetingId/summary', async (req, res) => {
         }
 
         // Processing: Meeting ended, audio uploaded, but no summary yet
-        if (meeting.status === 'ended' || meeting.audioPath) {
+        if (meeting.status === 'completed' || meeting.audioPath) {
             // Check if we need to trigger generation (fallback)
             // ONLY trigger if status is NOT failed and summary is empty
             if (meeting.status !== 'failed' && (!meeting.summary || meeting.summary === '')) {

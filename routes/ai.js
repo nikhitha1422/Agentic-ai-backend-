@@ -23,34 +23,34 @@ Carefully analyze the email below.
 
 Current Time: ${new Date().toISOString()}
 
+Your task is to detect if a meeting schedule is discussed and extract the details.
 A meeting IS REQUIRED if the email includes:
-- phrases like “let’s meet”, “schedule a meeting”, “schedule a call”
-- discussion requests
+- phrases like “let’s meet”, “schedule a meeting”, “schedule a call”, "talk about", "sync up"
+- discussion requests with a suggestion of time or date
 - suggested date, time, or participants
 
 If a meeting is required, respond ONLY in valid JSON:
-
 {
   "meetingRequired": true,
-  "title": "string",
-  "description": "string",
-  "recommendedDateTime": "string (ISO 8601 format)",
-  "participants": []
+  "title": "A concise and professional meeting title",
+  "description": "A brief summary of the meeting agenda based on the email",
+  "recommendedDateTime": "ISO 8601 format (e.g. 2025-02-15T10:00:00Z). If no year is mentioned, assume 2025.",
+  "participants": ["List of emails or names mentioned"]
 }
 
-If a meeting is NOT required, respond ONLY in valid JSON:
+If no specific date/time is mentioned but a meeting is requested, use tomorrow at 10 AM.
 
+If a meeting is NOT required (no request to meet or discuss), respond ONLY in valid JSON:
 {
   "meetingRequired": false,
-  "reason": "string"
+  "reason": "Explain briefly why no meeting was detected"
 }
 
 Rules:
-- NO explanations
-- NO markdown
-- NO extra text
+- NO markdown, NO code blocks, NO extra text.
+- ONLY return the raw JSON object.
 
-Email:
+Email Content:
 """${emailContent}"""
         `;
 

@@ -21,9 +21,16 @@ const MeetingSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['scheduled', 'live', 'ended', 'failed', 'summarized'],
+        enum: ['scheduled', 'live', 'ended', 'failed', 'summarized', 'completed'],
         default: 'scheduled'
     },
+    attachments: [{
+        name: String,
+        path: String,
+        size: Number,
+        type: String,
+        uploadedAt: { type: Date, default: Date.now }
+    }],
     allowAI: {
         type: Boolean,
         default: false
